@@ -1,0 +1,2606 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MONITORAMENTO</title>
+
+    <script src="https://unpkg.com/deck.gl@8.9.33/dist.min.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;800&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/pt.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+
+    <script src="Mapas/Guacho.js"></script>
+    <script src="Mapas/Rensi.js"></script>
+    <script src="Mapas/SaoPedro.js"></script>
+    <script src="Mapas/Bataguassu.js"></script>
+
+    <style>
+        #map-container {
+            display: none;
+        }
+
+        body {
+            margin: 0;
+            background: #000;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            opacity: 0;
+            transition: opacity 0.6s ease;
+        }
+
+        body.loaded {
+            opacity: 1;
+        }
+
+        #map {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 0 !important;
+        }
+
+        .maplibregl-canvas {
+            cursor: crosshair !important;
+        }
+
+        /* ===== TELA LOGIN ===== */
+
+        #login-screen {
+            display: none;
+        }
+
+        #login-screen {
+            opacity: 1;
+            transition: opacity 0.5s ease;
+            position: fixed !important;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(rgba(0, 0, 0, 0.1)),
+                url("FundoCinza.jpg") center/cover no-repeat;
+            z-index: 99999;
+        }
+
+        .fade-out {
+            opacity: 0;
+        }
+
+        .fade-in {
+            opacity: 1 !important;
+        }
+
+        /* ===== CAIXA LOGIN ===== */
+        .login-box {
+            width: 300px;
+            height: 300px;
+            padding: 40px;
+            border-radius: 12px;
+            position: relative;
+
+            /* transparência */
+            background: rgba(255, 255, 255, 0.4) !important;
+
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+
+            text-align: center;
+        }
+
+        /* Logo */
+        .login-box img {
+            width: 130px;
+            margin-bottom: 10px;
+        }
+
+        /* Inputs */
+        .login-box input {
+            width: 90%;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            outline: none;
+        }
+
+        /* Botão */
+        .login-box button {
+            width: 80%;
+            padding: 12px;
+            margin-top: 20px;
+            border: none;
+            border-radius: 6px;
+            background: #003d14;
+            color: white;
+            font-size: 15px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .login-box button:hover {
+            background: #005a1e;
+        }
+
+        #login-error {
+            color: red;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .menu-toggle-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 20;
+            background: rgba(10, 15, 20, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Share Tech Mono';
+            font-weight: bold;
+            letter-spacing: 1px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            backdrop-filter: blur(5px);
+        }
+
+        .menu-toggle-btn:hover {
+            background: #fff;
+            color: #000;
+        }
+
+        .menu-toggle-btn.active {
+            background: #ffffff;
+            color: #000;
+            border-color: #ffffff;
+        }
+
+        .menu-panel {
+            position: absolute;
+            top: 75px;
+            left: 20px;
+            z-index: 15;
+            width: 320px;
+            background: rgba(10, 15, 20, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            color: white;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 4px;
+            opacity: 0;
+            transform: translateY(-20px);
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .menu-panel.show {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: all;
+        }
+
+        .flatpickr-calendar {
+            background: transparent !important;
+            box-shadow: none !important;
+            width: 100% !important;
+        }
+
+        .flatpickr-innerContainer,
+        .flatpickr-rContainer,
+        .dayContainer {
+            width: 100% !important;
+        }
+
+        .flatpickr-day {
+            color: #ccc !important;
+            font-family: 'Share Tech Mono' !important;
+            border-radius: 4px !important;
+            background: transparent !important;
+            border-color: transparent !important;
+        }
+
+        .flatpickr-day.selected,
+        .flatpickr-day.startRange,
+        .flatpickr-day.endRange,
+        .flatpickr-day.selected.inRange,
+        .flatpickr-day:focus {
+            background: #ffffff !important;
+            color: #000000 !important;
+            border-color: #ffffff !important;
+            font-weight: bold;
+        }
+
+        .flatpickr-day.inRange {
+            background: rgba(255, 255, 255, 0.2) !important;
+            border-color: transparent !important;
+            box-shadow: -5px 0 0 rgba(255, 255, 255, 0.2), 5px 0 0 rgba(255, 255, 255, 0.2) !important;
+        }
+
+        .flatpickr-months {
+            background: transparent !important;
+            border: none !important;
+        }
+
+        .flatpickr-month {
+            background: transparent !important;
+            color: #fff !important;
+            fill: #fff !important;
+        }
+
+        .flatpickr-weekdays {
+            background: transparent !important;
+        }
+
+        span.flatpickr-weekday {
+            background: transparent !important;
+            color: #ccc !important;
+            font-weight: bold !important;
+        }
+
+        .flatpickr-current-month .flatpickr-monthDropdown-months {
+            background-color: transparent !important;
+            border: none !important;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            color: #fff !important;
+            font-weight: 800;
+            padding: 0 5px;
+        }
+
+        .flatpickr-current-month .flatpickr-monthDropdown-months:hover {
+            background-color: transparent !important;
+            color: #fff !important;
+        }
+
+        .flatpickr-current-month input.cur-year {
+            background: transparent !important;
+            color: #fff !important;
+        }
+
+        .flatpickr-current-month .flatpickr-monthDropdown-months .flatpickr-monthDropdown-month {
+            background-color: #000 !important;
+            color: #fff !important;
+        }
+
+        .right-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+            width: 100px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .timeline-container {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            width: 90%;
+            max-width: 500px;
+            background: rgba(10, 15, 20, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .timeline-container.minimized {
+            bottom: 10px;
+            width: 200px;
+            background: rgba(10, 15, 20, 0.5);
+        }
+
+        .timeline-toggle-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 10px;
+            color: #aaa;
+            letter-spacing: 2px;
+            transition: 0.2s;
+        }
+
+        .timeline-toggle-bar:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+        }
+
+        .timeline-content {
+            padding: 10px 20px;
+            opacity: 1;
+            transition: opacity 0.3s;
+        }
+
+        .timeline-container.minimized .timeline-content {
+            display: none;
+            opacity: 0;
+        }
+
+        .timeline-container.minimized .timeline-toggle-bar {
+            border-bottom: none;
+            height: 30px;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .data-box {
+            background: rgba(10, 15, 20, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 3px;
+            color: white;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(5px);
+            border-radius: 4px;
+        }
+
+        .data-box-percent {
+            padding-bottom: 22px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            color: #fff;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+        }
+
+        .btn-play {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid #fff;
+            color: #fff;
+            padding: 5px 15px;
+            border-radius: 4px;
+            font-family: 'Share Tech Mono';
+            cursor: pointer;
+            font-weight: bold;
+            width: 100px;
+            transition: 0.2s;
+            text-transform: uppercase;
+            font-size: 11px;
+            float: right;
+            margin-top: -5px;
+        }
+
+        .btn-play:hover {
+            background: #fff;
+            color: #000;
+        }
+
+        .btn-play.paused {
+            border-color: #ff5555;
+            color: #ff5555;
+            background: rgba(50, 0, 0, 0.5);
+        }
+
+        .btn-loop {
+            background: rgba(10, 15, 20, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #e1e1e1;
+            padding: 1px 2px;
+            border-radius: 4px;
+            font-family: 'Share Tech Mono';
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+            font-size: 14px;
+        }
+
+        .btn-loop:hover {
+            background: #fff;
+            color: #000;
+        }
+
+        .btn-loop.active {
+            background: #fff;
+            color: #000;
+            border-color: #fff;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-color: rgba(0, 0, 0, 0.3) !important;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #fff;
+            padding: 10px;
+            width: 100%;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-family: 'Inter', sans-serif;
+            font-weight: bold;
+            outline: none;
+            font-size: 12px;
+            cursor: pointer;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 16px;
+        }
+
+        select:hover {
+            background-color: rgba(0, 0, 0, 0.3) !important;
+        }
+
+        option {
+            background-color: #000 !important;
+            color: #fff;
+        }
+
+        label {
+            font-size: 9px;
+            color: #888;
+            text-transform: uppercase;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .time-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .speed-btn {
+            flex: 0;
+            background: rgba(10, 15, 20, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #e1e1e1;
+            padding: 4px 10px;
+            cursor: pointer;
+            border-radius: 3px;
+            font-family: 'Share Tech Mono';
+            font-weight: bold;
+            font-size: 9px;
+            transition: 0.3s;
+        }
+
+        .speed-btn:hover {
+            background: #fff;
+            color: #000;
+        }
+
+        .speed-btn.active {
+            background: #fff;
+            color: #000;
+            border-color: #fff;
+        }
+
+        #current-date-display {
+            font-family: 'Share Tech Mono';
+            font-size: 14px;
+            color: #ffffff;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        #current-hour {
+            font-family: 'Share Tech Mono';
+            font-size: 22px;
+            color: #fff;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+
+        input[type=range] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+            display: block;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 10px white;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #555;
+            border-radius: 2px;
+        }
+
+        .compass-circle {
+            width: 50px;
+            height: 50px;
+            border: 2px solid #555;
+            border-radius: 50%;
+            margin: 0 auto 5px auto;
+            position: relative;
+            background: radial-gradient(circle, #222 30%, transparent 60%);
+        }
+
+        .compass-arrow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 2px;
+            height: 24px;
+            background: #ffffff;
+            transform-origin: bottom center;
+            transform: translate(-50%, -100%) rotate(0deg);
+            transition: transform 0.5s;
+            box-shadow: 0 0 8px #ffffff;
+        }
+
+        .compass-percent {
+            top: 9px;
+        }
+
+        .gauge-val {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 26px;
+            font-weight: bold;
+            color: #fff;
+            line-height: 1;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .gauge-unit {
+            font-size: 9px;
+            color: #ccc;
+            letter-spacing: 2px;
+        }
+
+        .gauge-label {
+            font-size: 9px;
+            color: #ccc;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            display: block;
+            font-weight: bold;
+        }
+
+        #coord-box {
+            display: none;
+        }
+
+        .loader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px 20px;
+            display: none;
+            pointer-events: none;
+            z-index: 99;
+            font-family: monospace;
+            text-align: center;
+        }
+
+        .click-hint {
+            position: absolute;
+            bottom: 15px;
+            width: 100%;
+            text-align: center;
+            color: #fff;
+            font-family: 'Share Tech Mono';
+            font-size: 10px;
+            text-shadow: 0 0 5px black;
+            pointer-events: none;
+            opacity: 0.5;
+        }
+
+        .layer-toggles {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .layer-btn {
+            flex: 1;
+            background: rgba(10, 15, 20, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #888;
+            padding: 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-family: 'Share Tech Mono';
+            font-weight: bold;
+            font-size: 10px;
+            transition: 0.3s;
+        }
+
+        .logout-btn {
+            flex: 0 !important;
+            padding: 8px 25px !important;
+            white-space: nowrap;
+            /* impede quebra de linha */
+            color: white;
+        }
+
+        .layer-btn:hover {
+            background: #fff;
+            color: #000;
+        }
+
+        .layer-btn.active {
+            background: #ffffff;
+            color: #000;
+            border-color: #ffffff;
+        }
+
+        #data-mode-indicator {
+            display: none;
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            font-size: 8px;
+            color: #666;
+            font-family: monospace;
+            z-index: 5;
+        }
+
+        .deck-tooltip {
+            background: #000 !important;
+            border: 1px solid #fff;
+            color: #fff !important;
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            padding: 10px !important;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            border-radius: 4px;
+        }
+
+        #rain-table th,
+        #rain-table td {
+            border: 1px solid #444;
+            padding: 4px;
+            text-align: center;
+        }
+
+        #rain-table thead th {
+            position: sticky;
+            top: 0;
+            background: rgba(0, 0, 0, 0.90);
+            z-index: 2;
+        }
+
+        #rain-table tr:nth-child(even) {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        #rain-table-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #rain-table-content::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        #rain-table-content::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 4px;
+        }
+
+        #rain-table-content::-webkit-scrollbar-thumb:hover {
+            background: #777;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loader" class="loader">SINCRONIZANDO SISTEMA...</div>
+
+    <button class="menu-toggle-btn" onclick="toggleMenu()">
+        <span>☰ OPÇÕES</span>
+    </button>
+
+    <div class="menu-panel" id="main-menu">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px;">
+            <h1 style="margin:0; padding:0; line-height:1;">CONFIGURAÇÕES</h1>
+            <button class="layer-btn logout-btn" onclick="logout()">SAIR DO LOGIN</button>
+        </div>
+
+        <label>VISUALIZAÇÃO</label>
+        <div class="layer-toggles">
+            <button id="btn-wind" class="layer-btn active" onclick="toggleLayer('wind')">VENTO</button>
+
+            <button id="btn-rain" class="layer-btn active" onclick="toggleLayer('rain')">CHUVA</button>
+
+            <button id="btn-solinftec" class="layer-btn" onclick="updateWeather('solinftec')">SOLINFTEC</button>
+
+            <button id="btn-satelite" class="layer-btn active" onclick="updateWeather('satelite')">SATÉLITE</button>
+        </div>
+
+        <label>ESTAÇÃO SOLINFTEC</label>
+        <select id="station-select" onchange="changeStation()">
+            <option value="">SELECIONE A ESTAÇÃO</option>
+        </select>
+
+        <label>FAZENDA (SELECIONE)</label>
+        <select id="location-select" onchange="changeFarm()">
+            <option value="GUACHO">GUACHO</option>
+            <option value="RENSI">RENSI</option>
+            <option value="SÃO_PEDRO">SÃO PEDRO</option>
+            <option value="BATAGUASSU">BATAGUASSU</option>
+        </select>
+
+        <label>SELECIONE O PERÍODO</label>
+        <div id="inline-calendar"></div>
+    </div>
+
+    <div class="timeline-container" id="timeline-box">
+        <div class="timeline-toggle-bar" onclick="toggleTimelineBox()">
+            <span id="toggle-icon">▼ MINIMIZAR</span>
+        </div>
+
+        <div class="timeline-content">
+            <div class="time-header">
+                <div style="display:flex; align-items:center">
+                    <span id="current-date-display">DD/MM</span>
+                    <span id="current-hour">--:--</span>
+                </div>
+                <div style="display:flex; gap: 5px; align-items: center;">
+                    <button id="loop-btn" class="btn-loop" onclick="toggleLoop()" title="Loop Infinito">∞</button>
+                    <button id="play-btn" class="btn-play" onclick="togglePlay()">▶ PLAY</button>
+                </div>
+            </div>
+            <input type="range" id="hour-slider" min="0" max="23" value="0" step="1" oninput="updateFromSlider()">
+
+            <div
+                style="display:flex; justify-content:space-between; font-size:8px; color:#888; margin-top:4px; align-items: center;">
+                <span>INÍCIO</span>
+                <span>MEIO</span><span>FIM</span>
+            </div>
+            <div id="speed-controls" style="display:flex; gap:5px; margin-top:5px; justify-content: flex-end;">
+                <button class="speed-btn" data-speed="-1" onclick="setPlaySpeed(-1)">-1x</button>
+                <button class="speed-btn active" data-speed="1" onclick="setPlaySpeed(1)">1x</button>
+                <button class="speed-btn" data-speed="1.5" onclick="setPlaySpeed(1.5)">1.5x</button>
+                <button class="speed-btn" data-speed="2" onclick="setPlaySpeed(2)">2x</button>
+                <button class="speed-btn" data-speed="4" onclick="setPlaySpeed(4)">4x</button>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="right-panel">
+        <div class="data-box">
+            <span class="gauge-label">DIREÇÃO</span>
+            <div class="compass-circle">
+                <!-- Norte -->
+                <div
+                    style="position:absolute; top:2px; left:50%; transform:translateX(-50%); font-size:8px; color:#aaa;">
+                    N</div>
+
+                <!-- Sul -->
+                <div
+                    style="position:absolute; bottom:2px; left:50%; transform:translateX(-50%); font-size:8px; color:#aaa;">
+                    S</div>
+
+                <!-- Leste -->
+                <div
+                    style="position:absolute; right:4px; top:50%; transform:translateY(-50%); font-size:8px; color:#aaa;">
+                    L</div>
+
+                <!-- Oeste -->
+                <div
+                    style="position:absolute; left:4px; top:50%; transform:translateY(-50%); font-size:8px; color:#aaa;">
+                    O</div>
+                <div id="arrow" class="compass-arrow"></div>
+            </div>
+            <div id="dir-val" style="font-family:'Share Tech Mono'; font-size:12px; margin-top:5px">---°</div>
+        </div>
+
+        <div class="data-box">
+            <span class="gauge-label">VELOCIDADE</span>
+            <div class="gauge-val" id="speed-val">---</div>
+            <div class="gauge-unit">Km/h</div>
+        </div>
+
+        <div class="data-box">
+            <span class="gauge-label" style="color:#7ec0ee;">CHUVA</span>
+            <div class="gauge-val" id="rain-val" style="color:#7ec0ee;">---</div>
+            <div class="gauge-unit">mm</div>
+        </div>
+
+        <div class="data-box">
+            <span class="gauge-label" style="color:#7ec0ee;">ACÚMULO</span>
+            <div class="gauge-val" id="rain-total-val" style="color:#7ec0ee;">---</div>
+            <div class="gauge-unit">mm
+                <BR>(Total Dia)
+            </div>
+        </div>
+
+        <div class="data-box">
+            <span class="gauge-label" style="color:#ff5555;">TOTAL</span>
+            <div class="gauge-val" id="total-insect-val" style="color:#ff5555;">0</div>
+            <div class="gauge-unit">PSILÍDEOS</div>
+        </div>
+
+        <div class="data-box" id="coord-box">
+            <span class="gauge-label">COORDENADAS</span>
+            <div class="coord-text" id="coord-lat">LAT: ---</div>
+            <div class="coord-text" id="coord-lon">LON: ---</div>
+        </div>
+
+        <div class="data-box">
+            <span class="gauge-label">Vento máximo</span>
+
+            <div class="gauge-val" id="peak-hour-unit" style="color:#ffffff;font-size:17px">
+                -- km/h
+            </div>
+            <div class="compass-circle">
+                <!-- Norte -->
+                <div
+                    style="position:absolute; top:2px; left:50%; transform:translateX(-50%); font-size:8px; color:#aaa;">
+                    N</div>
+
+                <!-- Sul -->
+                <div
+                    style="position:absolute; bottom:2px; left:50%; transform:translateX(-50%); font-size:8px; color:#aaa;">
+                    S</div>
+
+                <!-- Leste -->
+                <div
+                    style="position:absolute; right:4px; top:50%; transform:translateY(-50%); font-size:8px; color:#aaa;">
+                    L</div>
+
+                <!-- Oeste -->
+                <div
+                    style="position:absolute; left:4px; top:50%; transform:translateY(-50%); font-size:8px; color:#aaa;">
+                    O</div>
+
+                <div id="arrow-peak" class="compass-arrow"></div>
+            </div>
+            <div id="peak-hour-dir" style="font-family:'Share Tech Mono'; font-size:12px; margin-top:5px">
+                ---°
+            </div>
+        </div>
+
+        <div class="data-box">
+            <span class="gauge-label">DIREÇÃO PREDOMINANTE</span>
+            <div class="compass-circle">
+                <!-- Norte -->
+                <div
+                    style="position:absolute; top:2px; left:50%; transform:translateX(-50%); font-size:8px; color:#aaa;">
+                    N</div>
+
+                <!-- Sul -->
+                <div
+                    style="position:absolute; bottom:2px; left:50%; transform:translateX(-50%); font-size:8px; color:#aaa;">
+                    S</div>
+
+                <!-- Leste -->
+                <div
+                    style="position:absolute; right:4px; top:50%; transform:translateY(-50%); font-size:8px; color:#aaa;">
+                    L</div>
+
+                <!-- Oeste -->
+                <div
+                    style="position:absolute; left:4px; top:50%; transform:translateY(-50%); font-size:8px; color:#aaa;">
+                    O</div>
+                <div id="arrow-pred" class="compass-arrow"></div>
+            </div>
+            <div id="dir-pred-val" style="font-family:'Share Tech Mono'; font-size:12px; margin-top:5px">
+                ---°
+            </div>
+        </div>
+
+        <div class="data-box data-box-percent">
+            <span class="gauge-label">DIREÇÃO PERCENTUAL %</span>
+
+            <div class="compass-circle compass-percent">
+
+                <div
+                    style="position:absolute; top:1px; left:50%; transform:translateX(-50%); font-size:8px; color:#aaa;">
+                    N</div>
+
+                <div
+                    style="position:absolute; bottom:1px; left:50%; transform:translateX(-50%); font-size:8px; color:#aaa;">
+                    S</div>
+
+                <div
+                    style="position:absolute; right:1px; top:50%; transform:translateY(-50%); font-size:8px; color:#aaa;">
+                    L</div>
+
+                <div
+                    style="position:absolute; left:1px; top:50%; transform:translateY(-50%); font-size:8px; color:#aaa;">
+                    O</div>
+
+                <div id="pct-N"
+                    style="position:absolute; top:-14px; left:50%; transform:translateX(-50%); font-size:9px;">
+                    0%
+                </div>
+
+                <div id="pct-S"
+                    style="position:absolute; bottom:-14px; left:50%; transform:translateX(-50%); font-size:9px;">
+                    0%
+                </div>
+
+                <div id="pct-L"
+                    style="position:absolute; right:-23px; top:50%; transform:translateY(-50%); font-size:9px;">
+                    0%
+                </div>
+
+                <div id="pct-O"
+                    style="position:absolute; left:-22px; top:50%; transform:translateY(-50%); font-size:9px;">
+                    0%
+                </div>
+
+                <div id="arrow-percent" class="compass-arrow"></div>
+
+            </div>
+        </div>
+
+        <div id="data-mode-indicator">MODE: ---</div>
+    </div>
+
+    <div id="tooltip"
+        style="position: absolute; z-index: 10000; pointer-events: none; display: none; background: #000; border: 1px solid #fff; color: #fff; font-family: 'Inter', sans-serif; font-size: 11px; padding: 10px; border-radius: 4px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);">
+    </div>
+
+    <div id="login-screen">
+        <div class="login-box">
+            <img src="agt.png">
+
+            <input id="login-user" placeholder="Usuário">
+            <input id="login-pass" type="password" placeholder="Senha">
+            <span id="toggle-senha" class="eye" style="cursor:pointer;"></span>
+
+            <button onclick="doLogin()">Iniciar Sessão</button>
+
+            <div id="login-error"></div>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <div id="rain-table-container" style="
+    position:absolute;
+    bottom:10px;
+    right: 113px;
+    width:348px;
+    max-height:300px;
+    background:rgba(0, 0, 0, 0.7);
+    color:white;
+    font-size:11px;
+    border:1px solid #444;
+    border-radius:4px;
+    z-index:20;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+">
+        <div id="rain-table-toggle" style="
+        background:rgba(255,255,255,0.1);
+        cursor:pointer;
+        text-align:center;
+        padding:4px;
+        font-size:10px;
+    ">
+            ▼ BASE DE DADOS
+        </div>
+        <div id="rain-table-content" style="overflow:auto; padding:0; display: none">
+
+            <div id="rain-total" style="
+                padding:6px 8px;
+                font-weight:bold;
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+            ">
+                <span id="rain-total-text">
+                    Total do período: 0 mm
+                </span>
+
+                <button onclick="exportRainTable()" title="Exportar tabela"
+                    style="background:none;border:none;cursor:pointer;">
+                    <img src="Icone_Baixar.png" width="16">
+                </button>
+            </div>
+
+            <table id="rain-table" style="border-collapse:collapse; width:100%;">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Hora</th>
+                        <th>mm</th>
+                        <th>Vento (Km)</th>
+                        <th>Dir.</th>
+                        <th>Armad.</th>
+                        <th>Qtd. Psilídeos</th>
+                    </tr>
+                </thead>
+                <tbody id="rain-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let AUTH_TOKEN = localStorage.getItem("auth_token");
+
+
+
+        async function doLogin() {
+            const user = document.getElementById("login-user").value;
+            const pass = document.getElementById("login-pass").value;
+            const errorDiv = document.getElementById("login-error");
+
+            errorDiv.innerText = "";
+
+            try {
+                const res = await fetch("https://servidor-5qr4.onrender.com/api/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        username: user,
+                        password: pass
+                    })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    errorDiv.innerText = data.error || "Erro no login";
+                    return;
+                }
+
+                AUTH_TOKEN = data.token;
+                localStorage.setItem("auth_token", AUTH_TOKEN);
+
+                const loginScreen = document.getElementById("login-screen");
+                const mapa = document.getElementById("map");
+
+                // fade do login
+                loginScreen.style.opacity = "0";
+
+                setTimeout(() => {
+                    loginScreen.style.display = "none";
+
+                    // Inicializa o app
+                    initAppOnce();
+
+                }, 600);
+
+            } catch (e) {
+                errorDiv.innerText = "Erro ao conectar ao servidor";
+            }
+        }
+
+        const ESTACOES_SOLINFTEC = [
+            {
+                id: 201,
+                nome: "MARCICANO TEC",
+                coords: [-49.3972, -22.8472]
+            },
+            {
+                id: 202,
+                nome: "POMAR VELHO TEC",
+                coords: [-49.3496, -22.8190]
+            },
+            {
+                id: 206,
+                nome: "SALTO TEC",
+                coords: [-49.3847, -22.8724]
+            },
+            {
+                id: 207,
+                nome: "LORENZETI TEC",
+                coords: [-49.4002, -22.7907]
+            },
+            {
+                id: 210,
+                nome: "CAPORANGA TEC",
+                coords: [-49.5893, -22.7105]
+            },
+            {
+                id: 211,
+                nome: "ANTÔNIO RENSI TEC",
+                coords: [-49.5058, -22.6820]
+            },
+            {
+                id: 212,
+                nome: "JOÃO RENSI TEC",
+                coords: [-49.5349, -22.7029]
+            },
+            {
+                id: 213,
+                nome: "ROSÁRIO TEC",
+                coords: [-49.4779, -22.6781]
+            },
+            {
+                id: 215,
+                nome: "COQUEIRO TEC",
+                coords: [-49.7371, -22.6992]
+            },
+            {
+                id: 216,
+                nome: "DUAS PORTEIRAS TEC",
+                coords: [-49.7110, -22.7074]
+            },
+            {
+                id: 410,
+                nome: "SEDE BATAGUASSU TEC",
+                coords: [-52.7465, -21.8039]
+            },
+            {
+                id: 411,
+                nome: "PARAKI TEC",
+                coords: [-52.7362, -21.7892]
+            },
+            {
+                id: 412,
+                nome: "TOCA COELHOS TEC",
+                coords: [-52.7505, -21.7696]
+            }
+        ];
+
+        let CURRENT_STATION_ID = null;
+
+        const SOLINFTEC_CONFIG = {
+            token: "Agric250-39d1-465e-a938-e636771b5e75",
+            baseUrl: "https://api.solinftec.com/v1", // Confirme a URL correta na documentação deles
+            enabled: true
+        };
+
+        // ============================================================================
+        //  CONFIGURAÇÃO ARCGIS
+        // ============================================================================
+        const ARCGIS_CONFIG = {
+            valueField: "qual_a_quantidade_de_psil_deos",
+            dateField: "data_e_hora",
+            idField: "id_armadilha"
+        };
+
+        const FAZENDAS = {
+            "GUACHO": { coords: [-49.377960, -22.815950] },
+            "SÃO_PEDRO": { coords: [-49.7311, -22.6981] },
+            "RENSI": { coords: [-49.5148, -22.6799] },
+            "BATAGUASSU": { coords: [-52.7436, -21.7873] }
+        };
+
+        const MAPAS = {
+            GUACHO: window.MAPA_GUACHO,
+            RENSI: window.MAPA_RENSI,
+            SÃO_PEDRO: window.MAPA_SPT,
+            BATAGUASSU: window.MAPA_BATAGUASSU
+        };
+
+        // ============================================================================
+        //  ESTADO GLOBAL
+        // ============================================================================
+        let CENTER = FAZENDAS["GUACHO"].coords;
+        let DATA_CACHE = { speeds: [], dirs: [], rains: [] };
+        let CURR_DATA = { speed: 15, dir: 90, rain: 0 };
+        let LAYERS = { wind: true, rain: true };
+        let PEST_FEATURES = []; // Todos os dados baixados
+        let FILTERED_PESTS = []; // Apenas da fazenda atual
+        let visiblePests = [];
+
+        let isPlaying = false;
+        let timer = null;
+        let isLooping = false;
+
+
+        // --- INICIALIZAÇÃO DE DATAS ---
+        function getLocalDateStr(date) {
+            const y = date.getFullYear();
+            const m = (date.getMonth() + 1).toString().padStart(2, '0');
+            const d = date.getDate().toString().padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        const today = new Date();
+        let startStr = localStorage.getItem("dataInicio") || getLocalDateStr(today);
+        let endStr = localStorage.getItem("dataFim") || getLocalDateStr(today);
+
+        let slider = null;
+
+        // ============================================================================
+        //  UI FUNCTIONS
+        // ============================================================================
+        function toggleTimelineBox() {
+            const box = document.getElementById('timeline-box');
+            const icon = document.getElementById('toggle-icon');
+            box.classList.toggle('minimized');
+            icon.innerHTML = box.classList.contains('minimized') ? "▲ EXPANDIR" : "▼ MINIMIZAR";
+        }
+
+        function toggleMenu() {
+            const menu = document.getElementById('main-menu');
+            const btn = document.querySelector('.menu-toggle-btn');
+            menu.classList.toggle('show');
+            btn.classList.toggle('active');
+            btn.innerHTML = menu.classList.contains('show') ? "✖ FECHAR" : "☰ OPÇÕES";
+        }
+
+        function stopPlayer() {
+            isPlaying = false; clearInterval(timer);
+            const btn = document.getElementById('play-btn');
+            if (btn) { btn.innerText = "▶ PLAY"; btn.classList.remove('paused'); }
+        }
+
+        function toggleLayer(layer) {
+            LAYERS[layer] = !LAYERS[layer];
+            const btn = document.getElementById(layer === 'wind' ? 'btn-wind' : 'btn-rain');
+            if (LAYERS[layer]) btn.classList.add('active'); else btn.classList.remove('active');
+        }
+
+        function toggleLoop() {
+            isLooping = !isLooping;
+            const btn = document.getElementById('loop-btn');
+            if (isLooping) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        }
+
+        let playSpeed = 1; // velocidade padrão
+
+        function setPlaySpeed(speed) {
+            playSpeed = speed;
+
+            // Atualiza visualmente os botões
+            const buttons = document.querySelectorAll('#speed-controls .speed-btn');
+            buttons.forEach(btn => {
+                const btnSpeed = parseFloat(btn.getAttribute('data-speed'));
+                if (btnSpeed === speed) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            // Reinicia o player com a nova velocidade
+            if (isPlaying) {
+                clearInterval(timer);
+                startPlayer();
+            }
+        }
+
+        function startPlayer() {
+            if (timer) clearInterval(timer); // limpa qualquer timer antigo
+
+            // Intervalo base de 1 segundo (1000ms), dividido pela velocidade absoluta
+            // Se speed for 2, intervalo será 500ms. Se speed for 4, será 250ms.
+            let interval = 1000 / Math.abs(playSpeed);
+            let step = Math.sign(playSpeed); // 1 para frente, -1 para trás
+
+            timer = setInterval(() => {
+                let value = parseFloat(slider.value);
+                value += step;
+
+                // Chegou ao fim (indo para frente)
+                if (step > 0 && value > slider.max) {
+                    if (isLooping) {
+                        slider.value = 0;
+                        updateFromSlider();
+                    } else {
+                        stopPlayer();
+                        slider.value = 0;
+                        updateFromSlider();
+                        showAllPestsPaused();
+                    }
+
+                    return;
+                }
+
+                // Chegou ao início (indo para trás)
+                if (step < 0 && value < 0) {
+                    if (isLooping) {
+                        slider.value = slider.max;
+                        updateFromSlider();
+                    } else {
+                        slider.value = 0;
+                        updateFromSlider();
+                        stopPlayer();
+                    }
+                    return;
+                }
+
+
+                slider.value = value;
+                updateFromSlider();
+            }, interval);
+        }
+
+        function togglePlay() {
+            if (isPlaying) {
+                stopPlayer();
+            } else {
+                isPlaying = true;
+                // Se começar do zero, reseta a lista para acumular do início
+                if (parseInt(slider.value) === 0) {
+                    visiblePests = [];
+                }
+                document.getElementById('play-btn').innerText = "|| PAUSE";
+                startPlayer();
+            }
+        }
+
+
+        function loadSavedDates() {
+
+            const savedStart = localStorage.getItem("dataInicio");
+            const savedEnd = localStorage.getItem("dataFim");
+
+            if (savedStart) {
+                startStr = savedStart;
+            }
+
+            if (savedEnd) {
+                endStr = savedEnd;
+            }
+        }
+
+        // ============================================================================
+        //  CALENDÁRIO
+        // ============================================================================
+        const now = new Date();
+        const nextDay = new Date(now);
+        nextDay.setDate(now.getDate() + 1);
+
+        // pegar datas salvas
+        let savedStart = localStorage.getItem("dataInicio");
+        let savedEnd = localStorage.getItem("dataFim");
+
+        let defaultDates;
+
+        if (savedStart && savedEnd) {
+            defaultDates = [savedStart, savedEnd];
+        } else {
+            defaultDates = [today, today];
+        }
+
+
+        const calendar = flatpickr("#inline-calendar", {
+            inline: true,
+            mode: "range",
+            dateFormat: "Y-m-d",
+            defaultDate: defaultDates,
+            locale: "pt",
+
+            onChange: function (selectedDates, dateStr, instance) {
+
+                if (selectedDates.length > 0) {
+
+                    stopPlayer();
+
+                    startStr = instance.formatDate(selectedDates[0], "Y-m-d");
+                    endStr = selectedDates.length === 2
+                        ? instance.formatDate(selectedDates[1], "Y-m-d")
+                        : startStr;
+
+                    localStorage.setItem("dataInicio", startStr);
+                    localStorage.setItem("dataFim", endStr);
+
+                    fetchData();
+                    fetchPestData(
+                        selectedDates[0],
+                        selectedDates.length === 2 ? selectedDates[1] : selectedDates[0]
+                    );
+                }
+            }
+        });
+
+        // ============================================================================
+        //  MAPA
+        // ============================================================================
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: {
+                version: 8,
+                sources: { 'satellite': { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } },
+                layers: [{ id: 'satellite', type: 'raster', source: 'satellite', minzoom: 0, maxzoom: 22 }]
+            },
+            center: CENTER, zoom: 14, pitch: 0
+        });
+
+        const overlay = new deck.MapboxOverlay({
+            layers: []
+        });
+        map.addControl(overlay);
+
+        map.on('load', () => {
+            document
+                .getElementById('btn-satelite')
+                .classList.add('active');
+            if (typeof window.Mapa_Guacho !== 'undefined') {
+                map.addSource('fazenda', { 'type': 'geojson', 'data': window.Mapa_Guacho });
+                map.addLayer({ 'id': 'fazenda-outline', 'type': 'line', 'source': 'fazenda', 'paint': { 'line-color': '#FFFFFF', 'line-width': 1.5, 'line-opacity': 0.8 } });
+                try { map.fitBounds(turf.bbox(window.Mapa_Guacho), { padding: 50, maxZoom: 15 }); } catch (e) { }
+            }
+        });
+
+        map.on('click', async (e) => {
+            let clicouNoPonto = false;
+
+            if (map.getLayer('pest-layer')) {
+                const features = map.queryRenderedFeatures(e.point, {
+                    layers: ['pest-layer']
+                });
+                clicouNoPonto = features.length > 0;
+            }
+
+            // Alterna a fonte de dados climáticos
+            if (clicouNoPonto) {
+                await updateWeather("solinftec");
+            } else {
+                await updateWeather("satelite");
+            }
+
+            const datas = calendar.selectedDates;
+            if (datas.length > 0) {
+                fetchPestData(datas[0], datas.length === 2 ? datas[1] : datas[0]);
+            }
+
+            executeMove(e.lngLat.lng, e.lngLat.lat);
+        });
+
+        // ============================================================================
+        //  PARTÍCULAS/VENTO
+        // ============================================================================
+        const COUNT_WIND = 300; const COUNT_RAIN = 900;
+        const WIND_PARTICLES = []; const RAIN_PARTICLES = [];
+        const CHEVRON_ICON = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNNiA5TDEyIDE1TDE4IDkiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+";
+        const SPREAD = 0.04;
+
+        function randomPointInCircle(center, radius) {
+            const angle = Math.random() * Math.PI * 2;
+            const r = radius * Math.sqrt(Math.random());
+
+            return [
+                center[0] + Math.cos(angle) * r,
+                center[1] + Math.sin(angle) * r
+            ];
+        }
+
+        function resetWindParticle(p, randomStart) {
+            p.pos = randomPointInCircle(CENTER, SPREAD / 2);
+            p.age = randomStart ? Math.random() * 50 : 0;
+            p.life = 30 + Math.random() * 30;
+            p.speedOffset = 0.8 + Math.random() * 0.4;
+        }
+
+        function initParticles() {
+            WIND_PARTICLES.length = 0; RAIN_PARTICLES.length = 0;
+            for (let i = 0; i < COUNT_WIND; i++) { let p = {}; resetWindParticle(p, true); WIND_PARTICLES.push(p); }
+            for (let i = 0; i < COUNT_RAIN; i++) { RAIN_PARTICLES.push({ pos: randomPointInCircle(CENTER, SPREAD / 2), life: 15 + Math.random() * 15, age: Math.random() * 30 }); }
+        }
+
+        // ============================================================================
+        //  ANIMAÇÃO
+        // ============================================================================
+
+
+
+        let staticLayers = [];
+        function updateStaticLayers() {
+            staticLayers = [
+                new deck.ScatterplotLayer({
+                    id: 'center-point',
+                    data: [{ position: CENTER }],
+                    getPosition: d => d.position,
+                    getRadius: 6,
+                    radiusUnits: "pixels",
+                    getFillColor: [134, 0, 0, 255],
+                    stroked: true,
+                    getLineColor: [255, 255, 255],
+                    lineWidthMinPixels: 1
+                })
+            ];
+        }
+
+        function animate() {
+            const dynamicLayers = [];
+
+            // 1. VENTO
+            if (LAYERS.wind) {
+                const rad = (90 - CURR_DATA.dir) * (Math.PI / 180);
+                const visualSpeed = CURR_DATA.speed * 0.000008;
+                const vx = Math.cos(rad) * visualSpeed;
+                const vy = Math.sin(rad) * visualSpeed;
+                const angle = -CURR_DATA.dir + 180;
+                const lineData = [];
+                const arrowData = [];
+
+                for (let i = 0; i < COUNT_WIND; i++) {
+                    const p = WIND_PARTICLES[i];
+                    const oldPos = [...p.pos];
+                    p.pos[0] += vx * p.speedOffset;
+                    p.pos[1] += vy * p.speedOffset;
+                    p.age++;
+                    if (p.age > p.life) {
+                        resetWindParticle(p, false);
+                    } else {
+                        const alpha = Math.min(p.age * 15, (p.life - p.age) * 15, 255);
+                        const color = [255, 255, 255, alpha];
+                        if (alpha > 20) {
+                            lineData.push({ source: oldPos, target: p.pos, color: color });
+                            if (alpha > 80) arrowData.push({ pos: p.pos, angle: angle, color: color });
+                        }
+                    }
+                }
+                dynamicLayers.push(new deck.LineLayer({ id: 'wind-trails', data: lineData, getSourcePosition: d => d.source, getTargetPosition: d => d.target, getColor: d => d.color, getWidth: 2, widthMinPixels: 1 }));
+                dynamicLayers.push(new deck.IconLayer({ id: 'wind-arrows', data: arrowData, getIcon: d => ({ url: CHEVRON_ICON, width: 24, height: 24, mask: true }), getPosition: d => d.pos, getAngle: d => d.angle, getColor: d => d.color, getSize: 15, sizeScale: 1, sizeMinPixels: 10 }));
+            }
+
+            // 2. CHUVA
+            if (LAYERS.rain && CURR_DATA.rain > 0) {
+                const rainData = [];
+                const dropSpeed = 0.0001 + (CURR_DATA.rain * 0.00002);
+                let baseAlpha = Math.min(255, (CURR_DATA.rain * 40) + 80);
+                const activeRainCount = Math.floor(COUNT_RAIN * Math.min(1, CURR_DATA.rain / 8));
+                const radius = SPREAD / 2;
+                const windRad = (90 - CURR_DATA.dir) * (Math.PI / 180);
+                const windInfluence = CURR_DATA.speed * 0.000006;
+                const rainVx = Math.cos(windRad) * windInfluence;
+                const rainVy = Math.sin(windRad) * windInfluence;
+
+                for (let i = 0; i < activeRainCount; i++) {
+                    const p = RAIN_PARTICLES[i];
+                    const oldPos = [...p.pos];
+                    p.pos[0] += rainVx;
+                    p.pos[1] -= dropSpeed - rainVy;
+                    p.age++;
+
+                    const dx = p.pos[0] - CENTER[0];
+                    const dy = p.pos[1] - CENTER[1];
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist > radius) {
+                        p.pos = randomPointInCircle(CENTER, radius);
+                        continue;
+                    }
+
+                    rainData.push({
+                        source: oldPos,
+                        target: p.pos,
+                        color: [150, 230, 255, baseAlpha]
+                    });
+                }
+
+                dynamicLayers.push(new deck.LineLayer({
+                    id: 'rain',
+                    data: rainData,
+                    getSourcePosition: d => d.source,
+                    getTargetPosition: d => d.target,
+                    getColor: d => d.color,
+                    getWidth: 2,
+                    widthMinPixels: 1
+                }));
+            }
+
+            overlay.setProps({ layers: [...staticLayers, ...dynamicLayers] });
+            requestAnimationFrame(animate);
+        }
+
+        // ============================================================================
+        //  FETCH DADOS (CLIMA + PRAGAS)
+        // ============================================================================
+
+        function saveDateFilter() {
+            localStorage.setItem("startDate", startStr);
+            localStorage.setItem("endDate", endStr);
+        }
+
+        let currentWeatherSource = 'satelite';
+
+        async function updateWeather(source) {
+            currentWeatherSource = source;
+
+            document.getElementById('btn-solinftec')
+                ?.classList.toggle('active', source === 'solinftec');
+            document.getElementById('btn-satelite')
+                ?.classList.toggle('active', source === 'satelite');
+
+            if (currentWeatherSource === "solinftec") {
+                const today = new Date().toISOString().split('T')[0];
+
+                if (startStr >= today) {
+                    alert("Solinftec só possui dados históricos");
+                    return;
+                }
+            }
+
+            let url = "";
+
+            if (source === "solinftec") {
+                if (!CURRENT_STATION_ID) {
+                    alert("Clique em uma estação Solinftec no mapa");
+                    return;
+                }
+
+                url =
+                    `https://servidor-5qr4.onrender.com/api/clima/solinftec` +
+                    `?stationId=${CURRENT_STATION_ID}` +
+                    `&dataInicio=${startStr}T00:00:00` +
+                    `&dataFim=${endStr}T23:59:59`;
+
+            } else {
+                const lat = CENTER[1];
+                const lon = CENTER[0];
+
+                url =
+                    `https://servidor-5qr4.onrender.com/api/clima/openmeteo` +
+                    `?lat=${lat}&lon=${lon}` +
+                    `&dataInicio=${startStr}` +
+                    `&dataFim=${endStr}`;
+            }
+
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        "Authorization": "Bearer " + AUTH_TOKEN
+                    }
+                });
+
+                if (response.status === 401) {
+                    logout();
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (currentWeatherSource === "solinftec") {
+
+                    if (!data || data.length === 0 || data.empty) {
+                        alert("Solinftec não possui dados para esse período");
+                        return;
+                    }
+
+                    const registros = data;
+
+                    DATA_CACHE.speeds = [];
+                    DATA_CACHE.dirs = [];
+                    DATA_CACHE.rains = [];
+
+                    let totalRain = 0;
+
+                    registros.forEach(r => {
+                        const speed = r.VL_VELOCIDADE_VENTO || 0;
+                        const dir = r.VL_DIRECAO_VENTO || 0;
+                        const rain = r.VL_CHUVA || 0;
+
+                        DATA_CACHE.speeds.push(speed);
+                        DATA_CACHE.dirs.push(dir);
+                        DATA_CACHE.rains.push(rain);
+
+                        totalRain += rain;
+                    });
+
+                    slider.max = DATA_CACHE.speeds.length - 1;
+                    slider.value = 0;
+
+                    document.getElementById('rain-total-val').innerText =
+                        totalRain.toFixed(1);
+
+                    updateFromSlider();
+                    calcularDirecaoPredominante();
+                    calcularHoraPredominantePorMes();
+                    atualizarPercentuais();
+                    atualizarTabelaChuva();
+                }
+
+                /* ===== OPEN METEO ===== */
+                else {
+                    DATA_CACHE.speeds = [];
+                    DATA_CACHE.dirs = [];
+                    DATA_CACHE.rains = [];
+
+                    let totalRain = 0;
+
+                    data.forEach(r => {
+                        DATA_CACHE.speeds.push(r.windSpeed || 0);
+                        DATA_CACHE.dirs.push(r.windDir || 0);
+                        DATA_CACHE.rains.push(r.rain || 0);
+
+                        totalRain += r.rain || 0;
+                    });
+
+                    slider.max = DATA_CACHE.speeds.length - 1;
+                    slider.value = 0;
+
+                    document.getElementById('rain-total-val').innerText =
+                        totalRain.toFixed(1);
+
+                    updateFromSlider();
+                    calcularDirecaoPredominante();
+                    calcularHoraPredominantePorMes();
+                    atualizarPercentuais();
+                    atualizarTabelaChuva();
+
+                }
+                console.log(`Clima via ${source}`, data);
+
+            } catch (e) {
+                console.error("Erro ao buscar clima:", e);
+            }
+        }
+
+        function drawFarmMap(nomeFazenda) {
+            const geo = MAPAS[nomeFazenda];
+            if (!geo) return;
+
+            if (map.getLayer('fazenda-outline'))
+                map.removeLayer('fazenda-outline');
+
+            if (map.getSource('fazenda'))
+                map.removeSource('fazenda');
+
+            map.addSource('fazenda', {
+                type: 'geojson',
+                data: geo
+            });
+
+            map.addLayer({
+                id: 'fazenda-outline',
+                type: 'line',
+                source: 'fazenda',
+                paint: {
+                    'line-color': '#FFFFFF',
+                    'line-width': 1.5,
+                    'line-opacity': 0.8
+                }
+            });
+
+            try {
+                map.fitBounds(turf.bbox(geo), { padding: 50, maxZoom: 15 });
+            } catch (e) { }
+        }
+
+        async function fetchWeather(lat, lon) {
+            updateWeather(currentWeatherSource);
+        }
+
+        async function fetchData() {
+
+            saveDateFilter(); // SALVA O FILTRO
+
+            document.getElementById('loader').style.display = 'block';
+            if (!startStr || !endStr) return;
+
+            try {
+                const todayStr = new Date().toISOString().split('T')[0];
+                const isHistory = endStr < todayStr;
+                let baseUrl = isHistory ? "https://archive-api.open-meteo.com/v1/archive" : "https://api.open-meteo.com/v1/forecast";
+                document.getElementById('data-mode-indicator').innerText = isHistory ? "MODE: HISTÓRICO" : "MODE: PREVISÃO";
+
+                let url = `${baseUrl}?latitude=${CENTER[1]}&longitude=${CENTER[0]}&hourly=windspeed_10m,winddirection_10m,precipitation&start_date=${startStr}&end_date=${endStr}&timezone=auto`;
+                let res = await fetch(url);
+                if (!res.ok) throw new Error("Erro API Open-Meteo");
+                let json = await res.json();
+                if (!json.hourly) { throw new Error("Sem dados"); }
+
+                DATA_CACHE.speeds = json.hourly.windspeed_10m;
+                DATA_CACHE.dirs = json.hourly.winddirection_10m;
+                DATA_CACHE.rains = json.hourly.precipitation;
+                DATA_CACHE.times = json.hourly.time;
+
+                slider.max = DATA_CACHE.speeds.length - 1;
+                slider.value = 0;
+                updateFromSlider();
+                atualizarTabelaChuva();
+
+            } catch (e) { console.error(e); } finally { document.getElementById('loader').style.display = 'none'; }
+        }
+
+
+
+        // 1. Função para buscar os dados via Python
+        async function fetchPestData(startDate, endDate) {
+            try {
+                const s = startDate.toISOString().split('T')[0] + " 00:00:00";
+                const e = endDate.toISOString().split('T')[0] + " 23:59:59";
+                const where = `data_e_hora BETWEEN '${s}' AND '${e}' AND qual_a_quantidade_de_psil_deos >= 0`;
+
+                const url = `https://servidor-5qr4.onrender.com/api/pragas?where=${encodeURIComponent(where)}&outFields=*&returnGeometry=true&outSR=4326`;
+
+                const res = await fetch(url, {
+                    headers: {
+                        "Authorization": "Bearer " + AUTH_TOKEN
+                    }
+                });
+
+                if (res.status === 401) {
+                    logout();
+                    return;
+                }
+
+                const json = await res.json();
+
+                if (json.error) throw new Error(json.error);
+
+                PEST_FEATURES = json.features || [];
+
+                filterPestsByLocation();
+                showAllPestsPaused();
+                calcularHoraPredominantePorMes();
+                atualizarPercentuais();
+                atualizarTabelaChuva();
+
+            } catch (e) {
+                console.error("Erro na busca:", e);
+            }
+        }
+
+        // Função para mostrar todos os psilídeos e atualizar o total no estado global
+        function showAllPestsPaused() {
+            if (!FILTERED_PESTS) return;
+            // Garante que o estado global contenha todos os pontos para o mapa ficar cheio
+            visiblePests = [...FILTERED_PESTS];
+            renderPestLayer(visiblePests);
+
+            // total de psilídeos
+            const totalPests = visiblePests.reduce(
+                (sum, f) => sum + (f.properties["qual_a_quantidade_de_psil_deos"] || 0),
+                0
+            );
+            document.getElementById('total-insect-val').innerText = totalPests;
+        }
+
+
+        // 2. Função para filtrar e chamar o desenho
+        function filterPestsByLocation() {
+            if (!PEST_FEATURES) return;
+
+            const fazendaSelecionada =
+                document.getElementById("location-select").value;
+
+            const geo = MAPAS[fazendaSelecionada];
+            if (!geo) {
+                renderPestLayer(PEST_FEATURES);
+                return;
+            }
+
+            // Verificação de segurança: Se não houver geometria da fazenda, mostra tudo sem filtrar por área
+            if (!geo) {
+                FILTERED_PESTS = PEST_FEATURES;
+            } else {
+                // Criar um buffer de 5km para incluir pontos dos vizinhos
+                const expandedArea = turf.buffer(geo, 5, { units: 'kilometers' });
+
+                // Consolidar em uma única feature caso seja uma FeatureCollection (impede o TypeError no booleanPointInPolygon)
+                const unifiedArea = expandedArea.type === 'FeatureCollection'
+                    ? (turf.combine(expandedArea).features[0] || expandedArea.features[0])
+                    : expandedArea;
+
+                FILTERED_PESTS = PEST_FEATURES.filter(f => {
+                    if (!f.geometry || !f.geometry.coordinates) return false;
+
+                    try {
+                        const pt = turf.point(f.geometry.coordinates);
+                        return turf.booleanPointInPolygon(pt, unifiedArea);
+                    } catch (e) {
+                        return false;
+                    }
+                });
+            }
+
+            if (isPlaying) {
+                visiblePests = visiblePests.filter(f =>
+                    FILTERED_PESTS.includes(f)
+                );
+                renderPestLayer(visiblePests);
+            } else {
+                // Se estiver pausado, mostra TODOS os pontos filtrados do período para o mapa não começar vazio
+                renderPestLayer(FILTERED_PESTS);
+            }
+
+            calcularHoraPredominantePorMes();
+        }
+
+        function getPestsForCurrentHour() {
+            if (!FILTERED_PESTS || FILTERED_PESTS.length === 0) return [];
+
+            const idx = parseInt(slider.value);
+            const horaAtual = new Date(startStr + "T00:00:00");
+            horaAtual.setHours(idx);
+
+            const inicioHora = new Date(horaAtual);
+            inicioHora.setMinutes(0, 0, 0);
+
+            const fimHora = new Date(horaAtual);
+            fimHora.setMinutes(59, 59, 999);
+
+            // Filtra só os que foram coletados nessa hora
+            return FILTERED_PESTS.filter(f => {
+                const dataF = f.properties?.data_e_hora ? new Date(f.properties.data_e_hora) : null;
+                return dataF && dataF >= inicioHora && dataF <= fimHora;
+            });
+        }
+
+        // VARIÁVEIS DE CONTROLE
+        let lastProcessedIdx = -1;
+        let pestLayerInstance = null;
+
+        function renderPestLayer(data) {
+            if (!pestLayerInstance) {
+                pestLayerInstance = new deck.MapboxLayer({
+                    id: 'pest-layer',
+                    type: deck.ScatterplotLayer,
+                    data: data,
+                    getPosition: d => d.geometry.coordinates,
+                    getRadius: d => {
+                        const v = d.properties["qual_a_quantidade_de_psil_deos"] || 0;
+                        if (v >= 5) return 23;
+                        if (v >= 3) return 18;
+                        if (v >= 2) return 15;
+                        if (v >= 1) return 10;
+                        return 5;
+                    },
+                    getFillColor: d => {
+                        const v = d.properties["qual_a_quantidade_de_psil_deos"] || 0;
+                        if (v >= 5) return [255, 0, 0, 255];
+                        if (v >= 3) return [255, 140, 0, 255];
+                        if (v >= 1) return [255, 255, 0, 255];
+                        return [255, 255, 255, 255];
+                    },
+                    stroked: false,
+                    pickable: true,
+                    radiusUnits: 'pixels',
+                    onHover: ({ object, x, y }) => {
+                        const el = document.getElementById('tooltip');
+                        if (object && object.properties) {
+                            const dateStr = object.properties.data_e_hora;
+                            const date = dateStr ? new Date(dateStr).toLocaleString('pt-BR') : '---';
+                            const qty = object.properties.qual_a_quantidade_de_psil_deos || 0;
+
+                            el.innerHTML = `
+                                <div style="font-weight:bold; margin-bottom:4px; border-bottom:1px solid #444; padding-bottom:2px;">
+                                    DETALHES DA COLETA
+                                </div>
+                                <div style="margin-top:4px;"><strong>Data:</strong> ${date}</div>
+                                <div><strong>Quantidade:</strong> ${qty}</div>
+                            `;
+                            el.style.display = 'block';
+                            el.style.left = (x + 10) + 'px';
+                            el.style.top = (y + 10) + 'px';
+                        } else {
+                            el.style.display = 'none';
+                        }
+                    }
+                });
+
+                if (map.isStyleLoaded()) {
+                    map.addLayer(pestLayerInstance);
+                } else {
+                    map.once("load", () => map.addLayer(pestLayerInstance));
+                }
+            } else {
+                // Atualiza os dados (mesmo que seja um array vazio [])
+                pestLayerInstance.setProps({ data: data });
+            }
+        }
+
+        function updateFromSlider() {
+            const idx = parseInt(slider.value);
+
+            if (!DATA_CACHE.speeds || DATA_CACHE.speeds[idx] === undefined) return;
+
+            // 1. Atualização de Clima
+            CURR_DATA.speed = DATA_CACHE.speeds[idx] || 0;
+            CURR_DATA.dir = DATA_CACHE.dirs[idx] || 0;
+            CURR_DATA.rain = DATA_CACHE.rains[idx] || 0;
+
+            const currentDate = new Date(startStr + "T00:00:00");
+            currentDate.setHours(currentDate.getHours() + idx);
+            const limitTs = currentDate.getTime();
+
+            // Atualização da UI (Relógio)
+            const h = currentDate.getHours().toString().padStart(2, '0');
+            const d = currentDate.getDate().toString().padStart(2, '0');
+            const m = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+
+            document.getElementById('current-hour').innerText = `${h}:00`;
+            document.getElementById('current-date-display').innerText = `${d}/${m}`;
+            document.getElementById('speed-val').innerText = CURR_DATA.speed.toFixed(1);
+            document.getElementById('rain-val').innerText = CURR_DATA.rain.toFixed(1);
+
+            // --- 3. LÓGICA DE SINCRONIZAÇÃO ---
+            if (idx !== lastProcessedIdx) {
+                lastProcessedIdx = idx;
+
+                updateRainTotal(idx);
+                calcularDirecaoPredominante();
+
+                if (!isPlaying) {
+                    // MODO MANUAL: Mostra o que acumulou até o ponto do slider
+                    visiblePests = FILTERED_PESTS.filter(f => {
+                        const ts = new Date(f.properties.data_e_hora).getTime();
+                        return ts <= limitTs;
+                    });
+                    renderPestLayer(visiblePests);
+                }
+                else {
+
+                    if (idx === 0) {
+                        visiblePests = [];
+                        renderPestLayer(visiblePests);
+                    } else {
+                        // Busca novas pragas que entraram até este horário
+                        const newPests = FILTERED_PESTS.filter(f => {
+                            const ts = new Date(f.properties.data_e_hora).getTime();
+                            return ts <= limitTs && !visiblePests.some(p => p.id === f.id);
+                        });
+
+                        // Se encontrou algo novo, adiciona à lista e renderiza
+                        if (newPests.length > 0) {
+                            visiblePests = [...visiblePests, ...newPests];
+                            renderPestLayer(visiblePests);
+                        }
+
+                        else if (visiblePests.length === 0) {
+                            renderPestLayer([]);
+                        }
+                    }
+                }
+
+                // Atualização do contador (Sempre reflete o que está no mapa)
+                const totalPests = visiblePests.reduce((sum, f) =>
+                    sum + (f.properties["qual_a_quantidade_de_psil_deos"] || 0), 0
+                );
+                document.getElementById('total-insect-val').innerText = totalPests;
+            }
+
+            // 4. Bússola
+            document.getElementById('dir-val').innerText = `${Math.round(CURR_DATA.dir)}°`;
+            const arrow = document.getElementById('arrow');
+            if (arrow) {
+                arrow.style.transform = `translate(-50%, -100%) rotate(${CURR_DATA.dir}deg)`;
+            }
+        }
+
+        function updateRainTotal(idx) {
+            let dailyTotal = 0;
+            const startIndex = Math.floor(idx / 24) * 24;
+            for (let i = startIndex; i < startIndex + 24 && i < DATA_CACHE.rains.length; i++) {
+                dailyTotal += DATA_CACHE.rains[i] || 0;
+            }
+            document.getElementById('rain-total-val').innerText = dailyTotal.toFixed(1);
+        }
+
+        function highlightPestsByHour() {
+            if (!FILTERED_PESTS || FILTERED_PESTS.length === 0) return;
+
+            const idx = parseInt(slider.value);
+            const selectedDate = new Date(startStr + "T00:00:00");
+            selectedDate.setHours(idx);
+
+            const inicioHora = new Date(selectedDate);
+            inicioHora.setMinutes(0, 0, 0);
+
+            const fimHora = new Date(selectedDate);
+            fimHora.setMinutes(59, 59, 999);
+
+            const hourPests = FILTERED_PESTS.map(f => {
+                const dataF = f.properties?.data_e_hora ? new Date(f.properties.data_e_hora) : null;
+                if (dataF && dataF >= inicioHora && dataF <= fimHora) {
+                    f.highlighted = true;
+                } else {
+                    f.highlighted = false;
+                }
+                return f;
+            });
+
+            renderPestLayer(hourPests);
+        }
+
+        // ============================================================================
+        //  MULTI-FAZENDA
+        // ============================================================================
+        function changeFarm() {
+            const val = document.getElementById('location-select').value;
+            const farm = FAZENDAS[val];
+
+            if (farm) {
+                CENTER = farm.coords;
+
+                executeMove(CENTER[0], CENTER[1]);
+                drawFarmMap(val);
+
+                const startDate = new Date(startStr + "T00:00:00");
+                const endDate = new Date(endStr + "T23:59:59");
+
+                fetchPestData(startDate, endDate);
+            }
+        }
+
+        function updateLocation() { changeFarm(); }
+
+        function executeMove(lon, lat) {
+            CENTER = [lon, lat];
+
+            document.getElementById('coord-lat').innerText =
+                `LAT: ${lat.toFixed(4)}`;
+            document.getElementById('coord-lon').innerText =
+                `LON: ${lon.toFixed(4)}`;
+
+            map.flyTo({ center: CENTER, zoom: 14 });
+
+            initParticles();
+
+            overlay.setProps({ layers: [] });
+
+            fetchData();
+            updateStaticLayers();
+        }
+
+        function populateStationMenu() {
+            const sel = document.getElementById("station-select");
+            if (!sel) return;
+
+            sel.innerHTML = '<option value="">SELECIONE A ESTAÇÃO</option>';
+
+            ESTACOES_SOLINFTEC.forEach(est => {
+                const opt = document.createElement("option");
+                opt.value = est.id;
+                opt.textContent = `${est.nome} (ID ${est.id})`;
+                sel.appendChild(opt);
+            });
+        }
+
+        function changeStation() {
+            const sel = document.getElementById("station-select");
+            const id = sel.value;
+
+            if (!id) return;
+
+            const est = ESTACOES_SOLINFTEC.find(e => e.id == id);
+            if (!est) return;
+
+            CURRENT_STATION_ID = Number(id);
+
+            executeMove(est.coords[0], est.coords[1]);
+            updateWeather("solinftec");
+        }
+
+        function calcularHoraPredominantePorMes() {
+            if (!DATA_CACHE || !DATA_CACHE.speeds || DATA_CACHE.speeds.length === 0)
+                return;
+
+            let maiorVel = -1;
+            let melhorIndice = 0;
+
+            DATA_CACHE.speeds.forEach((vel, i) => {
+                if (vel > maiorVel) {
+                    maiorVel = vel;
+                    melhorIndice = i;
+                }
+            });
+
+            const inicioPeriodo = new Date(startStr + "T00:00:00");
+            inicioPeriodo.setHours(inicioPeriodo.getHours() + melhorIndice);
+
+            const h = inicioPeriodo.getHours()
+                .toString()
+                .padStart(2, "0");
+
+            document.getElementById("peak-hour-unit").innerText =
+                `${maiorVel.toFixed(1)} km/h`;
+
+            const dir = DATA_CACHE.dirs[melhorIndice] || 0;
+
+            document.getElementById("peak-hour-dir").innerText =
+                `${Math.round(dir)}°`;
+
+            document.getElementById("arrow-peak").style.transform =
+                `translate(-50%, -100%) rotate(${dir}deg)`;
+        }
+
+        function calcularDirecaoPredominante() {
+
+            if (!DATA_CACHE || !DATA_CACHE.dirs || DATA_CACHE.dirs.length === 0)
+                return;
+
+            let sumX = 0;
+            let sumY = 0;
+            let count = 0;
+
+            DATA_CACHE.dirs.forEach(dir => {
+
+                if (dir === null || dir === undefined || isNaN(dir))
+                    return;
+
+                const rad = dir * Math.PI / 180;
+
+                sumX += Math.cos(rad);
+                sumY += Math.sin(rad);
+                count++;
+            });
+
+            if (count === 0) return;
+
+            const avgRad = Math.atan2(sumY, sumX);
+            let avgDeg = avgRad * 180 / Math.PI;
+
+            if (avgDeg < 0) avgDeg += 360;
+
+            document.getElementById("dir-pred-val").innerText =
+                `${Math.round(avgDeg)}°`;
+
+            document.getElementById("arrow-pred").style.transform =
+                `translate(-50%, -100%) rotate(${avgDeg}deg)`;
+        }
+
+        function calcularPercentualDirecao(direcoes) {
+            const setores = { N: 0, E: 0, S: 0, O: 0 };
+            let total = 0;
+
+            direcoes.forEach(dir => {
+                if (dir == null) return;
+
+                dir = Number(dir);
+                if (isNaN(dir)) return;
+                dir = ((dir % 360) + 360) % 360;
+                total++;
+
+                if (dir >= 315 || dir < 45) setores.N++;
+                else if (dir >= 45 && dir < 135) setores.E++;
+                else if (dir >= 135 && dir < 225) setores.S++;
+                else setores.O++;
+            });
+
+            if (total === 0) return setores;
+
+            Object.keys(setores).forEach(k => {
+                setores[k] = (setores[k] / total) * 100;
+            });
+
+            return setores;
+        }
+
+        function moverSetaMaiorPercentual(pct) {
+            const seta = document.getElementById("arrow-percent");
+            if (!seta) return;
+
+            let maiorDir = "N";
+            let maiorValor = -1;
+
+            Object.entries(pct).forEach(([dir, valor]) => {
+                if (valor > maiorValor) {
+                    maiorValor = valor;
+                    maiorDir = dir;
+                }
+            });
+
+            const angulos = {
+                N: 0,
+                E: 90,
+                S: 180,
+                O: 270
+            };
+
+            seta.style.transform =
+                `translate(-50%, -100%) rotate(${angulos[maiorDir]}deg)`;
+        }
+
+        function atualizarPercentuais() {
+            if (!DATA_CACHE || !DATA_CACHE.dirs) return;
+
+            const pct = calcularPercentualDirecao(DATA_CACHE.dirs);
+
+            document.getElementById("pct-N").innerText = pct.N.toFixed(0) + "%";
+            document.getElementById("pct-L").innerText = pct.E.toFixed(0) + "%";
+            document.getElementById("pct-S").innerText = pct.S.toFixed(0) + "%";
+            document.getElementById("pct-O").innerText = pct.O.toFixed(0) + "%";
+
+            moverSetaMaiorPercentual(pct);
+        }
+
+        function atualizarTabelaChuva() {
+            const tbody = document.getElementById("rain-table-body");
+            if (!tbody) return;
+
+            tbody.innerHTML = "";
+
+            if (!DATA_CACHE || !DATA_CACHE.rains) return;
+
+            let total = 0;
+
+            const inicioPeriodo = new Date(startStr + "T00:00:00");
+
+            DATA_CACHE.rains.forEach((_, i) => {
+
+                const d = new Date(inicioPeriodo);
+                d.setHours(d.getHours() + i);
+
+                const mm = Number(DATA_CACHE.rains?.[i] ?? 0);
+                const wind = Number(DATA_CACHE.speeds?.[i] ?? 0);
+                const dir = Number(DATA_CACHE.dirs?.[i] ?? 0);
+
+                total += mm;
+                let capturaHora = 0;
+                let armadilhasHora = new Set();
+
+                const inicioHora = new Date(d);
+                inicioHora.setMinutes(0, 0, 0);
+
+                const fimHora = new Date(d);
+                fimHora.setMinutes(59, 59, 999);
+
+                if (Array.isArray(FILTERED_PESTS)) {
+                    FILTERED_PESTS.forEach(f => {
+                        if (!f || !f.properties) return;
+
+                        const props = f.properties;
+
+                        const qtd = Number(props["qual_a_quantidade_de_psil_deos"]) || 0;
+
+                        if (!props["data_e_hora"]) return;
+
+                        const dataP = new Date(props["data_e_hora"]);
+
+                        if (dataP >= inicioHora && dataP <= fimHora) {
+                            capturaHora += qtd;
+
+                            if (qtd > 0) {
+                                const armadilha = props["armadilha_de_identifica_o"];
+                                if (armadilha !== undefined && armadilha !== null) {
+                                    armadilhasHora.add(armadilha);
+                                }
+                            }
+                        }
+
+                    });
+                }
+
+                const tr = document.createElement("tr");
+
+                tr.innerHTML = `
+                    <td>${d.toLocaleDateString("pt-BR")}</td>
+                    <td>${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</td>
+                    <td>${mm.toFixed(1)}</td>
+                    <td>${wind.toFixed(1)}</td>
+                    <td>${Math.round(dir)}°</td>
+                    <td>${[...armadilhasHora].join(", ")}</td>
+                    <td>${capturaHora}</td>
+                `;
+
+                tbody.appendChild(tr);
+            });
+
+            const totalDiv = document.getElementById("rain-total-text");
+            totalDiv.textContent =
+                "Total do período: " + total.toFixed(1) + " mm";
+        }
+
+        const rainToggle = document.getElementById("rain-table-toggle");
+        const rainContent = document.getElementById("rain-table-content");
+
+        const abertoSalvo = localStorage.getItem("rainOpen") === "true";
+        rainContent.style.display = abertoSalvo ? "block" : "none";
+
+        rainToggle.addEventListener("click", () => {
+            const aberto = rainContent.style.display !== "none";
+
+            rainContent.style.display = aberto ? "none" : "block";
+            localStorage.setItem("rainOpen", !aberto);
+
+            rainToggle.innerText = aberto
+                ? "▼ BASE DE DADOS"
+                : "▲ BASE DE DADOS";
+        });
+
+        //Tabela
+        function exportRainTable() {
+            const table = document.getElementById("rain-table");
+            if (!table) return;
+
+            let csv = [];
+
+            // Cabeçalho
+            const headers = table.querySelectorAll("thead th");
+            let headerRow = [];
+            headers.forEach(th => headerRow.push(th.innerText));
+            csv.push(headerRow.join(";"));
+
+            // Linhas
+            const rows = table.querySelectorAll("tbody tr");
+            rows.forEach(row => {
+                const cols = row.querySelectorAll("td");
+                let line = [];
+
+                cols.forEach(td => {
+                    line.push(td.innerText.replace(";", ","));
+                });
+
+                csv.push(line.join(";"));
+            });
+
+            const BOM = "\uFEFF";
+            const blob = new Blob([BOM + csv.join("\n")], {
+                type: "text/csv;charset=utf-8;"
+            });
+
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "Base de dados.csv";
+            link.click();
+        }
+
+        function ativarBotao(tipo) {
+
+            // mexe só nos botões de clima
+            document.getElementById("btn-solinftec")
+                ?.classList.remove("active");
+
+            document.getElementById("btn-satelite")
+                ?.classList.remove("active");
+
+            // ativa o escolhido
+            document.getElementById("btn-" + tipo)
+                ?.classList.add("active");
+        }
+
+        function logout() {
+            localStorage.removeItem("auth_token");
+            AUTH_TOKEN = null;
+
+            showLogin();
+        }
+
+        let moveUpdateTimeout;
+
+        map.on("moveend", () => {
+            if (!isPlaying) return;
+            clearTimeout(moveUpdateTimeout);
+
+            moveUpdateTimeout = setTimeout(() => {
+                filterPestsByLocation();
+            }, 300);
+        });
+
+        document.getElementById('coord-lat').innerText = `LAT: ${CENTER[1].toFixed(4)}`;
+        document.getElementById('coord-lon').innerText = `LON: ${CENTER[0].toFixed(4)}`;
+
+        function renderStations() {
+            ESTACOES_SOLINFTEC.forEach(est => {
+                const el = document.createElement('div');
+                el.style.width = '12px';
+                el.style.height = '12px';
+                el.style.borderRadius = '50%';
+                el.style.background = '#00bfff';
+                el.style.border = '2px solid white';
+                el.style.cursor = 'pointer';
+
+                el.title = est.nome;
+
+                el.addEventListener('click', e => {
+                    e.stopPropagation();
+
+                    CURRENT_STATION_ID = est.id;
+
+                    const sel = document.getElementById("station-select");
+                    if (sel) sel.value = est.id;
+
+                    // MOVE O CENTRO PARA A ESTAÇÃO
+                    executeMove(est.coords[0], est.coords[1]);
+
+                    // força modo solinftec
+                    updateWeather('solinftec');
+                });
+
+                new maplibregl.Marker(el)
+                    .setLngLat(est.coords)
+                    .addTo(map);
+            });
+        }
+
+        // Garante que o mapa carregou antes de plotar as fazendas
+        map.on('load', () => {
+            renderStations();
+            populateStationMenu();
+            drawFarmMap("GUACHO");
+        });
+
+        // Loop de animação e partículas
+        initParticles();
+        updateStaticLayers();
+        animate();
+
+        // ============================================================================
+        //  INICIALIZAÇÃO ÚNICA DO APP
+        // ============================================================================
+        function initAppOnce() {
+            if (!AUTH_TOKEN) {
+                showLogin();
+                return;
+            }
+
+            showApp();
+
+            // Força o carregamento dos dados iniciais
+            // updateWeather já chama fetchData internally se necessário ou faz sua própria busca
+            // Para SATÉLITE, fetchData() é o padrão de alta performance
+            if (currentWeatherSource === 'satelite') {
+                fetchData();
+            } else {
+                updateWeather('solinftec');
+            }
+
+            // Converte as strings YYYY-MM-DD para objetos Date locais
+            const sParts = startStr.split('-');
+            const eParts = endStr.split('-');
+            const sDate = new Date(sParts[0], sParts[1] - 1, sParts[2], 0, 0, 0);
+            const eDate = new Date(eParts[0], eParts[1] - 1, eParts[2], 23, 59, 59);
+
+            fetchPestData(sDate, eDate);
+        }
+
+
+        // Inicialização Principal ao carregar o DOM
+        document.addEventListener("DOMContentLoaded", () => {
+            // Inicializa elementos da UI que dependem do DOM
+            slider = document.getElementById('hour-slider');
+
+            loadSavedDates(); // Garante que as datas estão carregadas
+            document.body.classList.add("loaded");
+
+            if (AUTH_TOKEN) {
+                initAppOnce();
+            } else {
+                showLogin();
+            }
+        });
+
+
+        function showApp() {
+            document.getElementById("login-screen").style.display = "none";
+            document.getElementById("map").style.display = "block";
+        }
+
+        function showLogin() {
+            document.getElementById("login-screen").style.display = "flex";
+            document.getElementById("map").style.display = "none";
+        }
+    </script>
+</body>
+
+
+</html>
